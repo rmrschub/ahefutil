@@ -26,6 +26,66 @@ namespace
 } // namespace 
 
 
+struct grcy_mpi_rational
+{
+    int Sign;
+    gcry_mpi_t Numerator;
+    gcry_mpi_t Denominator;
+};
+
+
+// add encrypted numbers: E(x+y) = fmod( E(x)+E(y), N)
+static grcy_mpi_rational add (grcy_mpi_rational a, grcy_mpi_rational b, gcry_mpi_t publicKey)
+{
+    struct grcy_mpi_rational c;
+    c.Numerator = gcry_mpi_new (0);
+    c.Denominator = gcry_mpi_new (0);
+    
+    gcry_mpi_t t1 = gcry_mpi_new (0);
+    gcry_mpi_t t2 = gcry_mpi_new (0);
+    gcry_mpi_t t3 = gcry_mpi_new (0);
+    
+    gcry_mpi_mul (c.Denominator, a.Denominator, b.Denominator);
+    gcry_mpi_mod(c.Denominator, c.Denominator, publicKey);
+    
+    
+    if (a.Sign == b.Sign)
+    {
+        c.Sign = a.Sign;    
+        gcry_mpi_mul (t1, a.Numerator, b.Denominator);
+        gcry_mpi_mul (t2, b.Numerator, a.Denominator);
+        gcry_mpi_add (c.Numerator, t1, t2);
+        gcry_mpi_mod(c.Numerator, c.Numerator, publicKey);
+    }
+    else
+    {
+        gcry_mpi_mul (t1, a.Numerator, b.Denominator);
+        gcry_mpi_mul (t2, b.Numerator, a.Denominator);
+        
+        if (gcry_mpi_cmp(t1,t2) >= 0)
+        {
+            gcry_mpi_sub (c.Numerator, t1, t2);
+            c.Sign = a.Sign;
+        }
+        else 
+        {
+            gcry_mpi_sub (c.Numerator, t2, t1);
+            c.Sign = b.Sign;
+        }
+        
+        gcry_mpi_mod(c.Numerator, c.Numerator, publicKey);
+    }
+    
+    gcry_mpi_release(t1);
+    gcry_mpi_release(t2);
+    gcry_mpi_release(t3);
+    
+    return c;
+}
+    
+
+
+
 static void die (const char *format, ...)
 {
   va_list arg_ptr;
@@ -105,6 +165,8 @@ int main(int argc, char** argv)
         std::ifstream encryptedAStream(vm["ENCRYPTED_A"].as<std::string>());
         encryptedAStream >> ciphertext_A;
         encryptedAStream.close();
+        
+        /*
         int signA = ciphertext_A["sign"].get<int>();
         std::string numAStr = ciphertext_A["numerator"];
         std::string denomAStr = ciphertext_A["denominator"];
@@ -113,6 +175,14 @@ int main(int argc, char** argv)
         denomA = gcry_mpi_new(0);
         gcry_mpi_scan(&numA, GCRYMPI_FMT_HEX, numAStr.c_str(), 0, &scanned);
         gcry_mpi_scan(&denomA, GCRYMPI_FMT_HEX, denomAStr.c_str(), 0, &scanned);
+        */
+        
+        struct grcy_mpi_rational a;
+        a.Sign = ciphertext_A["sign"].get<int>();
+        a.Numerator = gcry_mpi_new(0);
+        a.Denominator = gcry_mpi_new(0);
+        gcry_mpi_scan(&a.Numerator, GCRYMPI_FMT_HEX, ciphertext_A["numerator"].get<std::string>().c_str(), 0, &scanned);
+        gcry_mpi_scan(&a.Denominator, GCRYMPI_FMT_HEX, ciphertext_A["denominator"].get<std::string>().c_str(), 0, &scanned);
         
         
         // read ciphertext from ENCRYPTED_B
@@ -120,6 +190,8 @@ int main(int argc, char** argv)
         std::ifstream encryptedBStream(vm["ENCRYPTED_B"].as<std::string>());
         encryptedBStream >> ciphertext_B;
         encryptedBStream.close();
+        
+        /*
         int signB = ciphertext_B["sign"].get<int>();
         std::string numBStr = ciphertext_B["numerator"];
         std::string denomBStr = ciphertext_B["denominator"];
@@ -128,10 +200,20 @@ int main(int argc, char** argv)
         denomB = gcry_mpi_new(0);
         gcry_mpi_scan(&numB, GCRYMPI_FMT_HEX, numBStr.c_str(), 0, &scanned);
         gcry_mpi_scan(&denomB, GCRYMPI_FMT_HEX, denomBStr.c_str(), 0, &scanned);
+        */
+        
+        struct grcy_mpi_rational b;
+        b.Sign = ciphertext_B["sign"].get<int>();
+        b.Numerator = gcry_mpi_new(0);
+        b.Denominator = gcry_mpi_new(0);
+        gcry_mpi_scan(&b.Numerator, GCRYMPI_FMT_HEX, ciphertext_B["numerator"].get<std::string>().c_str(), 0, &scanned);
+        gcry_mpi_scan(&b.Denominator, GCRYMPI_FMT_HEX, ciphertext_B["denominator"].get<std::string>().c_str(), 0, &scanned);
         
         // add encrypted numbers: E(x+y) = fmod( E(x)+E(y), N)
         
-//TODO:        int signC = signA * signB
+        struct grcy_mpi_rational c = add(a,b,N);
+        
+        /*
         
         gcry_mpi_t numC = gcry_mpi_new (0);
         gcry_mpi_t denomC = gcry_mpi_new (0);
@@ -148,12 +230,14 @@ int main(int argc, char** argv)
         gcry_mpi_mod(numC, numC, N);
         gcry_mpi_mod(denomC, denomC, N);
         
+        */
+        
         
         // write ENCRYPTED_C to file
         nlohmann::json ciphertext_C;
-        ciphertext_C["sign"] = signB;
-        ciphertext_C["numerator"] = toString(numC);
-        ciphertext_C["denominator"] = toString(denomC);
+        ciphertext_C["sign"] = c.Sign;
+        ciphertext_C["numerator"] = toString(c.Numerator);
+        ciphertext_C["denominator"] = toString(c.Denominator);
         time_t t;
         time(&t);
         ciphertext_C["created"] = ctime(&t);
@@ -166,6 +250,7 @@ int main(int argc, char** argv)
         
         // cleanup
         gcry_mpi_release(N);
+        /*
         gcry_mpi_release(numA);
         gcry_mpi_release(denomA);
         gcry_mpi_release(numB);
@@ -175,6 +260,7 @@ int main(int argc, char** argv)
         gcry_mpi_release(t3);
         gcry_mpi_release(numC);
         gcry_mpi_release(denomC);
+        */
         
     // app code ends here
     

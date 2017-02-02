@@ -1,14 +1,14 @@
 # ahefutil
 Implementation of the "Algebra Homomorphic Encryption Scheme Based on Fermat's Little Theorem" (AHEF)
 
-= TODOS
+## TODOS
 * Umbrella CLI
 * Support Radix-64 encoding (currently only HEX)
 ** Make choice of encoding an OPTION
 * Replace json with json-ld (eat your own dogfood)
 * Fix precision issues
 
-= Usage
+## Usage
 
 Generate two large random primes as private keys (keep them secret):
 ```{r, engine='bash', count_lines}
@@ -36,7 +36,7 @@ Use the private keys to decrypt the computation result:
 decrypt -p private_keys.json -c C.enc
 ```
 
-= Dependencies:
+## Dependencies:
 
 brew install libgcrypt
 brew tap nlohmann/json

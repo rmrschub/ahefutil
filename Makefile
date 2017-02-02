@@ -22,3 +22,6 @@ decrypt:
 
 addenc:
 	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/addenc src/addenc.cpp
+
+subenc:
+	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/subenc src/subenc.cpp

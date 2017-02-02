@@ -11,3 +11,6 @@ encrypt:
 
 decrypt:
     g++ -std=c++14 -O2 -Wall -I /usr/local/include -L /usr/local/lib -pedantic -pthread -lgcrypt -lboost_program_options -o decrypt decrypt.cpp
+
+addenc:
+    g++ -std=c++14 -O2 -Wall -I /usr/local/include -L /usr/local/lib -pedantic -pthread -lgcrypt -lboost_program_options -o addenc addenc.cpp

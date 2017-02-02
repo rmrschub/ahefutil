@@ -22,19 +22,32 @@ extract -p private_keys.json -o public_key.json
 
 Use private keys to encrypt some values A=2.5 and B=1.3:
 ```{r, engine='bash', count_lines}
-encrypt -o A.enc -p private_keys.json -v 2.5
-encrypt -o B.enc -p private_keys.json -v 1.3
+encrypt -p private_keys.json -o A.enc -v 2.5
+encrypt -p private_keys.json -o B.enc -v 1.3
 ```
 
-Use the public key to sum up the encrypted values:
+Use the public key to add two encrypted numbers together:
 ```{r, engine='bash', count_lines}
-addenc -a A.enc -b B.enc -p public_key.json -o C.enc
+addenc -p public_key.json -a A.enc -b B.enc -o C.enc
 ```
 
-Use the private keys to decrypt the computation result:
+Use the public key to subtract an encrypted number from another encrypted number:
+```{r, engine='bash', count_lines}
+subenc -p public_key.json -a A.enc -b B.enc -o D.enc
+```
+
+Use the public key to multiply two encrypted numbers:
+```{r, engine='bash', count_lines}
+mulenc -p public_key.json -a A.enc -b B.enc -o E.enc
+```
+
+Use the private keys to decrypt the computation results:
 ```{r, engine='bash', count_lines}
 decrypt -p private_keys.json -c C.enc
+decrypt -p private_keys.json -c D.enc
+decrypt -p private_keys.json -c E.enc
 ```
+
 
 ## Dependencies:
 

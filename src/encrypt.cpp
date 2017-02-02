@@ -16,6 +16,7 @@
 #include <boost/math/special_functions/sign.hpp>
 #include "json.hpp"
 #include "boost/program_options.hpp" 
+#include <stdint.h>
 
 namespace 
 { 
@@ -36,7 +37,6 @@ static void die (const char *format, ...)
   exit (1);
 }
 
-
 static std::string toString ( gcry_mpi_t a)
 {
     unsigned char *buf;
@@ -47,55 +47,105 @@ static std::string toString ( gcry_mpi_t a)
     return std_string;
 }
 
-
-struct Fraction
-{
-    int Sign;
-    int WholePart;
-    int Numerator;
-    int Denominator;
-} fractionalValue;
-
-struct Cipher
+struct grcy_mpi_rational
 {
     int Sign;
     gcry_mpi_t Numerator;
     gcry_mpi_t Denominator;
-} cipherText;
+};
 
-/*
- *  DOUBLE CHECK!
- */ 
-bool DecimalToFraction(double DecimalNum, Fraction &Result)
+
+static void rat_approx(double f, int64_t md, int64_t *num, int64_t *denom)
 {
-    Result.Sign = boost::math::signbit(DecimalNum);
-    
-    if (Result.Sign)
-        DecimalNum *= -1.0;
-    
-    const int MaxIntDigits = std::numeric_limits<int>::digits10;
-    const int WholeDigits = int(log10(DecimalNum));
-    const int FractionDigits = std::min(std::numeric_limits<double>::digits10 - WholeDigits, MaxIntDigits-1);
-
-    //If number has too many digits, can't convert
-    if(WholeDigits > MaxIntDigits)
-    {
-        return false;
-    }
-
-    //Separate into whole part and fraction
-    double WholePart;
-    DecimalNum = modf(DecimalNum, &WholePart);
-    Result.WholePart = int(WholePart);
-
-    //Convert the decimal to a fraction
-    const double Denominator = pow(10.0, FractionDigits);
-    Result.Numerator = int((DecimalNum * Denominator) + 0.5);
-    Result.Denominator = int(Denominator);
-
-    //Return success
-    return true;
+	/*  a: continued fraction coefficients. */
+	int64_t a, h[3] = { 0, 1, 0 }, k[3] = { 1, 0, 0 };
+	int64_t x, d, n = 1;
+	int i, neg = 0;
+ 
+	if (md <= 1) { *denom = 1; *num = (int64_t) f; return; }
+ 
+	if (f < 0) { neg = 1; f = -f; }
+ 
+	while (f != floor(f)) { n <<= 1; f *= 2; }
+	d = f;
+ 
+	/* continued fraction and check denominator each step */
+	for (i = 0; i < 64; i++) {
+		a = n ? d / n : 0;
+		if (i && !a) break;
+ 
+		x = d; d = n; n = x % n;
+ 
+		x = a;
+		if (k[1] * a + k[0] >= md) {
+			x = (md - k[0]) / k[1];
+			if (x * 2 >= a || k[1] >= md)
+				i = 65;
+			else
+				break;
+		}
+ 
+		h[2] = x * h[1] + h[0]; h[0] = h[1]; h[1] = h[2];
+		k[2] = x * k[1] + k[0]; k[0] = k[1]; k[1] = k[2];
+	}
+	*denom = k[1];
+	*num = neg ? -h[1] : h[1];
 }
+
+
+// calculate ciphertext: c = fmod((x_n/x_d)^(rx*(p-1)+1),p*q)
+static grcy_mpi_rational encrypt (double value, gcry_mpi_t p, gcry_mpi_t q)
+{
+    double v = value;
+    
+    // calculate N=p*q
+    gcry_mpi_t N = gcry_mpi_new(gcry_mpi_get_nbits(p)+gcry_mpi_get_nbits(q));
+    gcry_mpi_mul (N, p, q);
+    
+    struct grcy_mpi_rational cipher;
+    cipher.Sign = boost::math::signbit(v);
+    cipher.Numerator = gcry_mpi_new (0);
+    cipher.Denominator = gcry_mpi_new (0);
+
+    if (v < 0)
+        v *= -1.0;
+
+    // calculate x_n and x_d
+	int64_t d, n;
+    rat_approx(v, 10000, &n, &d);
+    std::stringstream v_n, v_d;
+    v_n << std::hex << n;
+    v_d << std::hex << d;
+    
+        
+    gcry_mpi_t x_n = gcry_mpi_new(0);
+    gcry_mpi_t x_d = gcry_mpi_new(0);
+    size_t scanned;
+    gcry_mpi_scan(&x_n, GCRYMPI_FMT_HEX, v_n.str().c_str(), 0, &scanned);
+    gcry_mpi_scan(&x_d, GCRYMPI_FMT_HEX, v_d.str().c_str(), 0, &scanned);
+    
+    // calculate e = (rx*(p-1)+1)
+    gcry_mpi_t e = gcry_mpi_new (0);
+    gcry_mpi_sub (e, p, GCRYMPI_CONST_ONE); // p-1
+    gcry_mpi_mul (e, e, GCRYMPI_CONST_ONE); // rx*(p-1): should be random, here simply rx=1
+    gcry_mpi_add (e, e, GCRYMPI_CONST_ONE); // (rx*(p-1)+1)
+    
+    // calculate fmod((x_n)^e, N)
+    gcry_mpi_powm (cipher.Numerator, x_n, e, N); 
+    
+    // calculate fmod((x_d)^e, N)
+    gcry_mpi_powm (cipher.Denominator, x_d, e, N); 
+    
+    // cleanup
+    gcry_mpi_release(N);
+    gcry_mpi_release(x_n);
+    gcry_mpi_release(x_d);
+    gcry_mpi_release(e);
+
+    return cipher;
+}
+
+
 
 
 int main(int argc, char** argv)
@@ -156,42 +206,15 @@ int main(int argc, char** argv)
         gcry_mpi_scan(&p, GCRYMPI_FMT_HEX, pString.c_str(), 0, &scanned);
         gcry_mpi_scan(&q, GCRYMPI_FMT_HEX, qString.c_str(), 0, &scanned);
         
-        // calculate publicKey N=P*Q
-        gcry_mpi_t n = gcry_mpi_new(gcry_mpi_get_nbits(p)+gcry_mpi_get_nbits(q));
-        gcry_mpi_mul (n, p, q);
 
-        // convert cleartext value into integral and fractional part
-        DecimalToFraction(vm["value"].as<double>(), fractionalValue);
-        std::stringstream streamD,streamN;
-        streamD << std::hex << (unsigned int)fractionalValue.Denominator;
-        std::string x_denom_str( streamD.str() );
-        streamN << std::hex << (unsigned int)(fractionalValue.WholePart * fractionalValue.Denominator + fractionalValue.Numerator);
-        std::string x_nom_str( streamN.str() );
-        
-        // prepare ciphertext
-        gcry_mpi_t x_n, x_d;
-        x_n = gcry_mpi_new(0);
-        x_d = gcry_mpi_new(0);
-        gcry_mpi_scan(&x_n, GCRYMPI_FMT_HEX, x_nom_str.c_str(), 0, &scanned);
-        gcry_mpi_scan(&x_d, GCRYMPI_FMT_HEX, x_denom_str.c_str(), 0, &scanned);
-        
-        // calculate ciphertext: c = fmod((x_n/x_d)^(rx*(p-1)+1),p*q)
-        cipherText.Sign = fractionalValue.Sign;
-        
-        gcry_mpi_t e = gcry_mpi_new (0);
-        gcry_mpi_sub (e, p, GCRYMPI_CONST_ONE); // p-1
-        gcry_mpi_mul (e, e, GCRYMPI_CONST_ONE); // rx*(p-1)
-        gcry_mpi_add (e, e, GCRYMPI_CONST_ONE); // (rx*(p-1)+1)
-        cipherText.Numerator = gcry_mpi_new (0);
-        gcry_mpi_powm (cipherText.Numerator, x_n, e, n); // (x_n)^(rx*(p-1)+1)
-        cipherText.Denominator = gcry_mpi_new (0);
-        gcry_mpi_powm (cipherText.Denominator, x_d, e, n); // fmod( (x_n)^(rx*(p-1)+1) , p*q)
+        grcy_mpi_rational cipher = encrypt (vm["value"].as<double>(), p, q);
+
 
         // write ciphertext to output file
         nlohmann::json ciphertext;
-        ciphertext["sign"] = cipherText.Sign;
-        ciphertext["numerator"] = toString(cipherText.Numerator);
-        ciphertext["denominator"] = toString(cipherText.Denominator);
+        ciphertext["sign"] = cipher.Sign;
+        ciphertext["numerator"] = toString(cipher.Numerator);
+        ciphertext["denominator"] = toString(cipher.Denominator);
         time_t t;
         time(&t);
         ciphertext["created"] = ctime(&t);
@@ -204,10 +227,6 @@ int main(int argc, char** argv)
         // cleanup
         gcry_mpi_release(p);
         gcry_mpi_release(q);
-        gcry_mpi_release(n);
-        gcry_mpi_release(e);
-        gcry_mpi_release(x_n);
-        gcry_mpi_release(x_d);
     }
     catch (std::exception& e) 
     { 

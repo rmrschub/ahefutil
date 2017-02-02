@@ -1,16 +1,24 @@
-# no time to make this Makefile run...
+CC = g++
+CFLAGS = -std=c++14 -O2 -Wall -pedantic
+INCLUDES = -I /usr/local/include
+LFLAGS = -L /usr/local/lib
+LIBS = -pthread -lgcrypt -lboost_program_options
 
-genpkey: 
-    g++ -std=c++14 -O2 -Wall -I /usr/local/include -L /usr/local/lib -pedantic -pthread -lgcrypt -lboost_program_options -o genpkey genpkey.cpp
+TARGET = genpkey extract encrypt decrypt addenc
+
+all: genpkey extract encrypt decrypt addenc
+
+genpkey:
+	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/genpkey src/genpkey.cpp
 
 extract:
-    g++ -std=c++14 -O2 -Wall -I /usr/local/include -L /usr/local/lib -pedantic -pthread -lgcrypt -lboost_program_options -o extract extract.cpp
+	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/extract src/extract.cpp
 
 encrypt:
-    g++ -std=c++14 -O2 -Wall -I /usr/local/include -L /usr/local/lib -pedantic -pthread -lgcrypt -lboost_program_options -o encrypt encrypt.cpp
+	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/encrypt src/encrypt.cpp
 
 decrypt:
-    g++ -std=c++14 -O2 -Wall -I /usr/local/include -L /usr/local/lib -pedantic -pthread -lgcrypt -lboost_program_options -o decrypt decrypt.cpp
+	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/decrypt src/decrypt.cpp
 
 addenc:
-    g++ -std=c++14 -O2 -Wall -I /usr/local/include -L /usr/local/lib -pedantic -pthread -lgcrypt -lboost_program_options -o addenc addenc.cpp
+	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/addenc src/addenc.cpp

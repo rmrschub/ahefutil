@@ -112,7 +112,7 @@ static grcy_mpi_rational encrypt (double value, gcry_mpi_t p, gcry_mpi_t q)
 
     // calculate x_n and x_d
 	int64_t d, n;
-    rat_approx(v, 10000, &n, &d);
+    rat_approx(v, 100000000, &n, &d);
     std::stringstream v_n, v_d;
     v_n << std::hex << n;
     v_d << std::hex << d;

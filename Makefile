@@ -6,7 +6,7 @@ LIBS = -pthread -lgcrypt -lboost_program_options
 
 TARGET = genpkey extract encrypt decrypt addenc
 
-all: genpkey extract encrypt decrypt addenc
+all: genpkey extract encrypt decrypt addenc subenc
 
 genpkey:
 	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/genpkey src/genpkey.cpp

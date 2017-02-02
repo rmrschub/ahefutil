@@ -54,34 +54,20 @@ static grcy_mpi_rational add (grcy_mpi_rational a, grcy_mpi_rational b, gcry_mpi
         c.Sign = a.Sign;    
         gcry_mpi_addm (c.Numerator, t1, t2, publicKey);
     }
-    
-    else if (b.Sign > 0)
-    {
-        if (gcry_mpi_cmp(t1,t2) > 0)
-        {
-            c.Sign = b.Sign;
-            gcry_mpi_subm (c.Numerator, t2, t1, publicKey);
-        }
-        else
-        {
-            c.Sign = a.Sign;
-            gcry_mpi_subm (c.Numerator, t1, t2, publicKey);
-        }
-    }
-    else if (a.Sign > 0)
+    else
     {
         if (gcry_mpi_cmp(t2,t1) > 0)
         {
+            c.Sign = b.Sign;
+            gcry_mpi_subm (c.Numerator, t2, t1, publicKey);            
+        }
+        else if (gcry_mpi_cmp(t1,t2) > 0)
+        {
             c.Sign = a.Sign;
             gcry_mpi_subm (c.Numerator, t1, t2, publicKey);
         }
-        else
-        {
-            c.Sign = b.Sign;
-            gcry_mpi_subm (c.Numerator, t2, t1, publicKey);
-        }
     }
-    
+
     gcry_mpi_release(t1);
     gcry_mpi_release(t2);
     gcry_mpi_release(t3);

@@ -58,13 +58,13 @@ static grcy_mpi_rational sub (grcy_mpi_rational a, grcy_mpi_rational b, gcry_mpi
     {
         if (gcry_mpi_cmp(t2,t1) > 0)
         {
-            c.Sign = a.Sign;
-            gcry_mpi_subm (c.Numerator, t1, t2, publicKey);
+            c.Sign = (1-a.Sign);
+            gcry_mpi_subm (c.Numerator, t2, t1, publicKey);
         }
         else if (gcry_mpi_cmp(t1,t2) > 0)
         {
-            c.Sign = (1- a.Sign);
-            gcry_mpi_subm (c.Numerator, t2, t1, publicKey);
+            c.Sign = a.Sign;
+            gcry_mpi_subm (c.Numerator, t1, t2, publicKey);
         }
     }
     

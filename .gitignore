@@ -27,3 +27,13 @@
 *.exe
 *.out
 *.app
+
+# JSON files
+*.enc
+*.json
+
+addenc
+decrypt
+encrypt
+extract
+genpkey

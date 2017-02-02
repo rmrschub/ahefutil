@@ -4,9 +4,7 @@ INCLUDES = -I /usr/local/include
 LFLAGS = -L /usr/local/lib
 LIBS = -pthread -lgcrypt -lboost_program_options
 
-TARGET = genpkey extract encrypt decrypt addenc
-
-all: genpkey extract encrypt decrypt addenc subenc
+all: genpkey extract encrypt decrypt addenc subenc mulenc
 
 genpkey:
 	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/genpkey src/genpkey.cpp
@@ -25,3 +23,6 @@ addenc:
 
 subenc:
 	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/subenc src/subenc.cpp
+
+mulenc:
+	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/mulenc src/mulenc.cpp

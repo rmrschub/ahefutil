@@ -10,7 +10,7 @@ Implementation of the "Algebra Homomorphic Encryption Scheme Based on Fermat's L
 
 ## Usage
 
-Generate two large random primes as private keys (keep them secret):
+Generate two (*very*) large random primes as private keys (keep them secret):
 ```{r, engine='bash', count_lines}
 ./genpkey -o private_keys.json -k 1024
 ```

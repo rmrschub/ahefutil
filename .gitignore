@@ -37,3 +37,4 @@ decrypt
 encrypt
 extract
 genpkey
+subenc

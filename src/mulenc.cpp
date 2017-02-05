@@ -65,11 +65,11 @@ static grcy_mpi_rational mul (grcy_mpi_rational a, grcy_mpi_rational b, gcry_mpi
     
     if (a.Sign == b.Sign)
     {
-        c.Sign = 0;
+        c.Sign = 1;
     }
     else
     {
-        c.Sign = 1;
+        c.Sign = -1;
     }
 
     return c;

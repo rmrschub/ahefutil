@@ -39,3 +39,4 @@ extract
 genpkey
 subenc
 /bin
+*.test

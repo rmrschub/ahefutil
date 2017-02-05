@@ -4,9 +4,10 @@ Implementation of the "Algebra Homomorphic Encryption Scheme Based on Fermat's L
 ## TODOS
 * Umbrella CLI
 * Support Radix-64 encoding (currently only HEX)
-** Make choice of encoding an OPTION
+* Make choice of encoding an OPTION
 * Replace json with json-ld (eat your own dogfood)
 * Fix precision issues
+* Implement grcy_mpi_rational using signed big integers (e.g. https://mattmccutchen.net/bigint/)
 
 ## Usage
 

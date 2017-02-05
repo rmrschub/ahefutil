@@ -3,7 +3,7 @@
 eval "../bin/genpkey -o private_keys.json -k 1024"
 eval "../bin/extract -i private_keys.json -o public_key.json"
 
-echo "'plain','decrypt','error'" >> encrypt.test
+echo "'id','plain','decrypt','error'" >> encrypt.test
 
 for i in `seq 1 100`;
     do
@@ -13,7 +13,7 @@ for i in `seq 1 100`;
         eval "../bin/encrypt -p private_keys.json -o X.enc -v ${IN}"
         OUT=`eval "../bin/decrypt -p private_keys.json -c X.enc"`
         ERR=`echo "(($IN)-($OUT))" | bc -l`
-        echo "'${IN}','${OUT}','${ERR}'" >> encrypt.test
+        echo "'${I}','${IN}','${OUT}','${ERR}'" >> encrypt.test
     done 
 
 eval "rm X.enc"

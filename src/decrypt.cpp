@@ -136,16 +136,11 @@ int main(int argc, char** argv)
         gcry_mpi_mod(X_d, denom, p);
 
         // print cleartext to stdout
-        double cleartext = ((double)strtol(toString(X_n).c_str(), NULL, 16) / (double)strtol(toString(X_d).c_str(), NULL, 16));
-        
-        if (sign)
-            std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-                      << boost::math::changesign(cleartext) 
-                      << std::endl;
-        else
-            std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-                      << cleartext 
-                      << std::endl;
+        double cleartext = sign* ((double)strtol(toString(X_n).c_str(), NULL, 16) / (double)strtol(toString(X_d).c_str(), NULL, 16));
+
+        std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1)
+                  << cleartext 
+                  << std::endl;
         
         // cleanup
         gcry_mpi_release(p);

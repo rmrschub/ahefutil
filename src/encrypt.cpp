@@ -103,7 +103,7 @@ static grcy_mpi_rational encrypt (double value, gcry_mpi_t p, gcry_mpi_t q)
     gcry_mpi_mul (N, p, q);
     
     struct grcy_mpi_rational cipher;
-    cipher.Sign = boost::math::signbit(v);
+    cipher.Sign = boost::math::sign(v);
     cipher.Numerator = gcry_mpi_new (0);
     cipher.Denominator = gcry_mpi_new (0);
 

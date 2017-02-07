@@ -279,7 +279,6 @@ int main(int argc, char** argv)
         
         // add encrypted numbers: E(x+y) = fmod( E(x)+E(y), N)
         
-        //struct grcy_mpi_rational c = add(a,b,N);
         mpz_t t1, t2, a3, b3;
         mpz_init (a3);
         mpz_init (b3);
@@ -287,11 +286,7 @@ int main(int argc, char** argv)
         mpz_init (t2);
 
         mpz_mul(t1, a1, b2);
-//        smod(t1, N);
-
         mpz_mul(t2, a2, b1);
-//        smod(t2, N);
-
         mpz_add(a3, t1, t2);
         smod(a3, N);
 

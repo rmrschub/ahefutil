@@ -2,7 +2,7 @@ CC = g++
 CFLAGS = -std=c++14 -O2 -Wall -pedantic
 INCLUDES = -I /usr/local/include
 LFLAGS = -L /usr/local/lib
-LIBS = -pthread -lgcrypt -lboost_program_options
+LIBS = -pthread -lgcrypt -lboost_program_options -lgmp -lm
 
 all: genpkey extract encrypt decrypt addenc subenc mulenc
 

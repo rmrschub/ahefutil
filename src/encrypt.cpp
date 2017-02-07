@@ -18,6 +18,9 @@
 #include "boost/program_options.hpp" 
 #include <stdint.h>
 
+#include <gmp.h>
+
+
 namespace 
 { 
   const size_t ERROR_IN_COMMAND_LINE = 1; 
@@ -47,95 +50,93 @@ static std::string toString ( gcry_mpi_t a)
     return std_string;
 }
 
+
+static void grcy_mpi_smod (gcry_mpi_t a, gcry_mpi_t p)
+{
+        if (gcry_mpi_is_neg(a))
+    {
+        gcry_mpi_abs(a);
+        gcry_mpi_mod(a, a, p);
+        gcry_mpi_neg(a, a);    
+    }
+    else
+    {
+        gcry_mpi_mod(a, a, p);
+    }
+}
+
 struct grcy_mpi_rational
 {
-    int Sign;
     gcry_mpi_t Numerator;
     gcry_mpi_t Denominator;
 };
 
 
-static void rat_approx(double f, int64_t md, int64_t *num, int64_t *denom)
-{
-	/*  a: continued fraction coefficients. */
-	int64_t a, h[3] = { 0, 1, 0 }, k[3] = { 1, 0, 0 };
-	int64_t x, d, n = 1;
-	int i, neg = 0;
- 
-	if (md <= 1) { *denom = 1; *num = (int64_t) f; return; }
- 
-	if (f < 0) { neg = 1; f = -f; }
- 
-	while (f != floor(f)) { n <<= 1; f *= 2; }
-	d = f;
- 
-	/* continued fraction and check denominator each step */
-	for (i = 0; i < 64; i++) {
-		a = n ? d / n : 0;
-		if (i && !a) break;
- 
-		x = d; d = n; n = x % n;
- 
-		x = a;
-		if (k[1] * a + k[0] >= md) {
-			x = (md - k[0]) / k[1];
-			if (x * 2 >= a || k[1] >= md)
-				i = 65;
-			else
-				break;
-		}
- 
-		h[2] = x * h[1] + h[0]; h[0] = h[1]; h[1] = h[2];
-		k[2] = x * k[1] + k[0]; k[0] = k[1]; k[1] = k[2];
-	}
-	*denom = k[1];
-	*num = neg ? -h[1] : h[1];
-}
-
-
 // calculate ciphertext: c = fmod((x_n/x_d)^(rx*(p-1)+1),p*q)
 static grcy_mpi_rational encrypt (double value, gcry_mpi_t p, gcry_mpi_t q)
 {
-    double v = value;
+    // get fractional approximation value = numerator/denominator
+    mpf_set_default_prec (1024);
+    
+    mpf_t V;
+    mpf_init(V);
+    mpf_set_d(V,value);
+    
+    mpq_t fractional;
+    mpq_init (fractional);
+    mpq_set_f(fractional,V);
+    mpq_canonicalize(fractional);
+    
+    mpz_t numerator, denominator;
+    mpz_init(numerator);
+    mpz_init(denominator);
+    mpq_get_num(numerator, fractional);
+    mpq_get_den(denominator, fractional);
+    
+    char *v_n, *v_d;
+    gmp_asprintf (&v_n, "%Zx", numerator);
+    gmp_asprintf (&v_d, "%Zx", denominator);        
     
     // calculate N=p*q
     gcry_mpi_t N = gcry_mpi_new(gcry_mpi_get_nbits(p)+gcry_mpi_get_nbits(q));
     gcry_mpi_mul (N, p, q);
+
     
+    // construct grcy_mpi_rational
     struct grcy_mpi_rational cipher;
-    cipher.Sign = boost::math::sign(v);
     cipher.Numerator = gcry_mpi_new (0);
     cipher.Denominator = gcry_mpi_new (0);
 
-    if (v < 0)
-        v *= -1.0;
-
-    // calculate x_n and x_d
-	int64_t d, n;
-    rat_approx(v, 100000000, &n, &d);
-    std::stringstream v_n, v_d;
-    v_n << std::hex << n;
-    v_d << std::hex << d;
-    
-        
     gcry_mpi_t x_n = gcry_mpi_new(0);
     gcry_mpi_t x_d = gcry_mpi_new(0);
     size_t scanned;
-    gcry_mpi_scan(&x_n, GCRYMPI_FMT_HEX, v_n.str().c_str(), 0, &scanned);
-    gcry_mpi_scan(&x_d, GCRYMPI_FMT_HEX, v_d.str().c_str(), 0, &scanned);
-    
+
+    gcry_mpi_scan(&x_n, GCRYMPI_FMT_HEX, v_n, 0, &scanned);
+    gcry_mpi_scan(&x_d, GCRYMPI_FMT_HEX, v_d, 0, &scanned);
+
     // calculate e = (rx*(p-1)+1)
     gcry_mpi_t e = gcry_mpi_new (0);
     gcry_mpi_sub (e, p, GCRYMPI_CONST_ONE); // p-1
     gcry_mpi_mul (e, e, GCRYMPI_CONST_ONE); // rx*(p-1): should be random, here simply rx=1
     gcry_mpi_add (e, e, GCRYMPI_CONST_ONE); // (rx*(p-1)+1)
     
-    // calculate fmod((x_n)^e, N)
-    gcry_mpi_powm (cipher.Numerator, x_n, e, N); 
     
-    // calculate fmod((x_d)^e, N)
-    gcry_mpi_powm (cipher.Denominator, x_d, e, N); 
+    // calculate smod((x_n)^e, N)
+    if (gcry_mpi_is_neg(x_n))
+    {
+        gcry_mpi_abs(x_n);
+        gcry_mpi_powm (cipher.Numerator, x_n, e, N); 
+        gcry_mpi_neg (cipher.Numerator, cipher.Numerator);
+    }
+    else 
+    {
+        gcry_mpi_powm (cipher.Numerator, x_n, e, N); 
+    }
     
+    gcry_mpi_powm (cipher.Denominator, x_d, e, N);
+    grcy_mpi_smod(cipher.Denominator, N);
+    
+        
     // cleanup
     gcry_mpi_release(N);
     gcry_mpi_release(x_n);
@@ -212,7 +213,7 @@ int main(int argc, char** argv)
 
         // write ciphertext to output file
         nlohmann::json ciphertext;
-        ciphertext["sign"] = cipher.Sign;
+        //ciphertext["sign"] = cipher.Sign;
         ciphertext["numerator"] = toString(cipher.Numerator);
         ciphertext["denominator"] = toString(cipher.Denominator);
         time_t t;

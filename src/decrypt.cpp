@@ -17,6 +17,10 @@
 #include "json.hpp"
 #include "boost/program_options.hpp" 
 
+#include <gmp.h>
+
+
+
 namespace 
 { 
   const size_t ERROR_IN_COMMAND_LINE = 1; 
@@ -48,7 +52,6 @@ static std::string toString ( gcry_mpi_t a)
 
 struct Cipher
 {
-    int Sign;
     gcry_mpi_t Numerator;
     gcry_mpi_t Denominator;
 } cipherText;
@@ -118,7 +121,6 @@ int main(int argc, char** argv)
         ciphertextStream.close();
         
         // parse and construct grcy_mpi_t
-        int sign = ciphertext["sign"].get<int>();
         std::string denomStr = ciphertext["denominator"];
         std::string numStr = ciphertext["numerator"];
         
@@ -128,20 +130,82 @@ int main(int argc, char** argv)
         gcry_mpi_scan(&num, GCRYMPI_FMT_HEX, numStr.c_str(), 0, &scanned);
         gcry_mpi_scan(&denom, GCRYMPI_FMT_HEX, denomStr.c_str(), 0, &scanned);
         
-        // decrypt ciphertext: x = D(c) = fmod(c,p)
+        // decrypt ciphertext: x = D(c) = fmod(c,p) = smod(a,p) / smod(b,p)
         gcry_mpi_t X_n = gcry_mpi_new (0);
-        gcry_mpi_mod(X_n, num, p);
+        
+        if (gcry_mpi_is_neg(num))
+        {
+            gcry_mpi_abs (num);
+            gcry_mpi_mod(X_n, num, p);
+            gcry_mpi_neg (X_n, X_n);
+        }
+        else
+        {
+            gcry_mpi_mod(X_n, num, p);
+        }
+        
         
         gcry_mpi_t X_d = gcry_mpi_new (0);
-        gcry_mpi_mod(X_d, denom, p);
+        
+        if (gcry_mpi_is_neg(denom))
+        {
+            gcry_mpi_abs (denom);
+            gcry_mpi_mod(X_d, denom, p);
+            gcry_mpi_neg (X_d, X_d);
+        }
+        else
+        {
+            gcry_mpi_mod(X_d, denom, p);
+        }
 
         // print cleartext to stdout
-        double cleartext = sign* ((double)strtol(toString(X_n).c_str(), NULL, 16) / (double)strtol(toString(X_d).c_str(), NULL, 16));
-
-        std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-                  << cleartext 
-                  << std::endl;
+        gcry_mpi_t gcd = gcry_mpi_new(0);
+        gcry_mpi_gcd(gcd, X_n, X_d);
         
+        // simplify fraction
+        gcry_mpi_t a = gcry_mpi_new(0);
+        gcry_mpi_t b = gcry_mpi_new(0);
+        gcry_mpi_div (a, NULL, X_n, gcd, 0);
+        gcry_mpi_div (b, NULL, X_d, gcd, 0);
+        
+
+        mpf_set_default_prec( gcry_mpi_get_nbits(X_n) + gcry_mpi_get_nbits(X_d) );
+        mpf_t A, B, C;
+        mpf_init_set_str(A, toString(X_n).c_str(), 16);
+        mpf_init_set_str(B, toString(X_d).c_str(), 16);
+        mpf_init (C);
+        
+        mpf_div(C, A, B);
+        mpf_out_str(0, 10, 30, C);
+        
+        
+/*        
+        mpz_t A, B;
+        mpz_init (A);
+        mpz_init (B);
+        mpz_set_str(A, toString(X_n).c_str(), 16);
+        mpz_set_str(B, toString(X_d).c_str(), 16);
+        
+        mpq_t result;
+        mpq_init (result);
+        mpq_set_num (result, A);
+        mpq_set_den (result, B);
+        
+        mpq_canonicalize (result);
+        std::cout << mpq_out_str(0, 10, result) << std::endl;
+*/        
+        
+            /*
+
+        
+        std::cout << "#a " << gcry_mpi_get_nbits(X_n)  << std::endl;
+        std::cout << "#b " << gcry_mpi_get_nbits(X_d)  << std::endl;
+        
+        std::cout << "a " << toString(X_n).c_str() << std::endl;
+        std::cout << "b " << toString(X_d).c_str() << std::endl;
+        
+        */
+
         // cleanup
         gcry_mpi_release(p);
         gcry_mpi_release(q);

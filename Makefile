@@ -19,10 +19,10 @@ decrypt:
 	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/decrypt src/decrypt.cpp
 
 addenc:
-	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/addenc src/addenc.cpp
+	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/addenc src/addenc_gmp.cpp
 
 subenc:
 	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/subenc src/subenc.cpp
 
 mulenc:
-	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/mulenc src/mulenc.cpp
+	$(CC) $(CFLAGS) $(INCLUDES) $(LFLAGS) $(LIBS) -o bin/mulenc src/mulenc_gmp.cpp

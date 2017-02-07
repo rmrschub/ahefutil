@@ -1,15 +1,15 @@
 /*
- *  ahefutil addenc -a cipherA.json -b cipherB.json -p public_key.json -o cipherC.json
+ *  ahefutil mulenc -p public_key.json -a A.enc -b B.enc -o C.enc
  *
- *  Add two encrypted numbers together and write to file
+ *  Multiply two encrypted numbers and write result to file
  *
  */
 
 #define _OPEN_SYS_ITOA_EXT
 #include <stdio.h>
 #include <stdlib.h>
+#include <gcrypt.h>
 #include <fstream>
-#include <string>
 #include <cmath>
 #include <limits>
 #include <algorithm>
@@ -26,7 +26,6 @@ namespace
   const size_t ERROR_UNHANDLED_EXCEPTION = 2; 
  
 } // namespace 
-
 
 
 static void smod (mpz_t a, mpz_t p)
@@ -90,6 +89,7 @@ int main(int argc, char** argv)
         mpz_init(N);
         mpz_set_str ( N, public_key["N"].get<std::string>().c_str(), 16 );
 
+
         // read ciphertext from ENCRYPTED_A
         nlohmann::json ciphertext_A;
         std::ifstream encryptedAStream(vm["ENCRYPTED_A"].as<std::string>());
@@ -101,13 +101,13 @@ int main(int argc, char** argv)
         mpz_init(b1);
         mpz_set_str ( a1, ciphertext_A["numerator"].get<std::string>().c_str(), 16 );
         mpz_set_str ( b1, ciphertext_A["denominator"].get<std::string>().c_str(), 16 );
-
+        
         // read ciphertext from ENCRYPTED_B
         nlohmann::json ciphertext_B;
         std::ifstream encryptedBStream(vm["ENCRYPTED_B"].as<std::string>());
         encryptedBStream >> ciphertext_B;
         encryptedBStream.close();
-  
+
         mpz_t a2, b2;
         mpz_init(a2);
         mpz_init(b2);
@@ -115,17 +115,13 @@ int main(int argc, char** argv)
         mpz_set_str ( b2, ciphertext_B["denominator"].get<std::string>().c_str(), 16 );
         
         // add encrypted numbers: E(x+y) = fmod( E(x)+E(y), N)
-        mpz_t t1, t2, a3, b3;
+        mpz_t a3, b3;
         mpz_init (a3);
         mpz_init (b3);
-        mpz_init (t1);
-        mpz_init (t2);
-
-        mpz_mul(t1, a1, b2);
-        mpz_mul(t2, a2, b1);
-        mpz_add(a3, t1, t2);
+        
+        mpz_mul(a3, a1, a2);
         smod(a3, N);
-
+        
         mpz_mul(b3, b1, b2);
         smod(b3, N);
                 

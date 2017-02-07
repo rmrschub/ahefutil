@@ -3,12 +3,12 @@
 eval "../bin/genpkey -o private_keys.json -k 1024"
 eval "../bin/extract -i private_keys.json -o public_key.json"
 
-echo "'id',A','B','A+B','d(e(A+B))','error'" >> addenc.test
+echo "'id','A','B','A+B','d(e(A))','d(e(B))','d(e(A+B))','error'" >> addenc.test
 
 for i in `seq 1 500`;
     do
         NUM=`echo $(( $(( $RANDOM - $RANDOM )) % 10000000 ))` 
-        DENOM=`echo $[$RANDOM % 1000]`
+        DENOM=`echo $(( $[$RANDOM % 1000] + 1))`
         A=`echo "${NUM}/${DENOM}" | bc -l`
         eval "../bin/encrypt -p private_keys.json -o A.enc -v ${A}"
         
@@ -18,11 +18,13 @@ for i in `seq 1 500`;
         eval "../bin/encrypt -p private_keys.json -o B.enc -v ${B}"
         
         C=`echo "${A} + ${B}" | bc -l`
-        eval "../bin/addenc -p public_key.json -a A.enc -b B.enc -o C.enc"
+        eval "../bin/addenc_gmp -p public_key.json -a A.enc -b B.enc -o C.enc"
         
+        D_A=`eval "../bin/decrypt -p private_keys.json -c A.enc"`
+        D_B=`eval "../bin/decrypt -p private_keys.json -c B.enc"`
         OUT=`eval "../bin/decrypt -p private_keys.json -c C.enc"`
         ERR=`echo "(($C)-($OUT))" | bc -l`
-        echo "'${id}','${A}','${B}','${C}','${OUT}','${ERR}'" >> addenc.test
+        echo "'${i}','${A}','${B}','${C}','${D_A}','${D_B}','${OUT}','${ERR}'" >> addenc.test
     done 
 
 eval "rm A.enc"
